@@ -1,0 +1,154 @@
+---
+title: "Covid19 Data"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+
+require(tidyverse)
+
+lagdiff <- function(n) {
+  n - dplyr::lag(n, default = 0L)
+}
+
+ma7 <- function(n) {
+  zoo::rollmeanr(n, k = 7L, na.pad = TRUE)
+}
+
+ma28 <- function(n) {
+  zoo::rollmeanr(n, k = 28L, na.pad = TRUE)
+}
+```
+
+本リポジトリでは公開されている Covid19 関連のデータを日次で収集してるリポジトリです。したがいまして個々のデータの著作権は原著作者にあります。個々のデータのライセンに関しては以下のリンク先を参照してください。  
+
+
+* [Covid19Japan License for data](https://github.com/reustle/covid19japan-data/blob/master/LICENSE_for_data)
+* [Googleの利用規約（COVID-19 感染予測データ](https://policies.google.com/terms?hl=ja)
+* [新型コロナウイルス関連データ・ダウンロードサービス利用規約（NHK）](https://www3.nhk.or.jp/news/special/coronavirus/data/rules.html)
+
+　  
+
+## データ
+現状では手動トリガーにて取得しているために取得時間はバラバラです（取得後に更新されている可能性があります）。  
+
+ファイル名                       | 内容                             | Encode
+---------------------------------|----------------------------------|--------
+covid19japan_YYYY-MM-DD.csv      | 加工済個票データ                 | UTF-8
+covid19japan_YYYY-MM-DD.json     | Covid19Japanのオリジナルデータ   | UTF-8
+covid19japan_YYYY-MM-DD_json.csv | 上記をCSV形式に変換したもの      | UTF-8
+Google_Forecast_YYYY-MM-DD.csv   | Googleの予測データ               | UTF-8
+NHK_YYYY-MM-DD.csv               | NHKの都道府県別日時集計（単日・累計）データ | UTF-8
+
+
+`YYYY-MM-DD`は取得日
+
+　  
+
+### 加工済個票データ
+[Covid19 Japan](https://covid19japan.com/) が GitHub にて公開している [JSON形式の個票データ（CC BY-NC 4.0）](https://github.com/reustle/covid19japan-data/tree/master/docs/patient_data)に都道府県関連情報を連結し、必要最低限の項目に絞ったデータです。連結処理にハードルを感じている方はこの加工済個票データを利用してください。
+```{r, message=FALSE, echo=FALSE}
+df <- "https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+  jsonlite::fromJSON()
+
+prefs <- "https://gist.githubusercontent.com/k-metrics/9f3fc18e042850ff24ad9676ac34764b/raw/f4ea87f429e1ca28627feff94b67c8b2432aee59/pref_utf8.csv" %>% 
+  readr::read_csv() %>% 
+  dplyr::rename(pcode = `コード`) %>% 
+  dplyr::mutate(pref = stringr::str_to_title(pref),
+                pcode = forcats::fct_inorder(pcode),
+                fct_pref = forcats::fct_inorder(pref) ,
+                # `都道府県` = forcats::fct_inorder(`都道府県`),
+                `八地方区分` = forcats::fct_inorder(`八地方区分`),
+                `広域圏` = forcats::fct_inorder(`広域圏`),
+                `通俗的区分` = forcats::fct_inorder(`通俗的区分`),
+                `推計人口` = as.integer(`推計人口`))
+
+x <- df %>% 
+  dplyr::select(patientId, date = dateAnnounced, gender,
+                detectedPrefecture, patientStatus, knownCluster,
+                confirmedPatient, residence,
+                # charterFlightPassenger, cruisePassengerDisembarked,
+                ageBracket, residence) %>% 
+                # deceasedDate, deceasedReportedDate) %>% 
+  # dplyr::filter(date < lubridate::today()) %>% 
+  dplyr::filter(confirmedPatient == TRUE) %>% 
+  # dplyr::mutate(date = lubridate::as_date(date),
+  #               gender = forcats::as_factor(gender),
+  #               patientStatus = forcats::as_factor(patientStatus),
+  #               cluster = dplyr::if_else(!is.na(knownCluster), TRUE, FALSE),
+  #               ageBracket = forcats::as_factor(ageBracket),
+  #               deceasedDate = lubridate::as_date(deceasedDate),
+  #               deceasedReportedDate = lubridate::as_date(deceasedReportedDate)) %>% 
+  dplyr::left_join(prefs, by = c("detectedPrefecture" = "pref")) %>% 
+  # dplyr::select(-`推計人口`, -pref) %>%
+  # dplyr::select(pref) %>%
+  dplyr::rename(pref = `都道府県`, region = `八地方区分`, population = `推計人口`) %>% 
+  dplyr::select(-pcode, -`広域圏`, -`通俗的区分`, -fct_pref)
+  # tidyr::drop_na(pref)
+
+x %>% 
+  head(10)
+```
+
+　  
+加工済個票のフォーマットは下記の通りです。  
+
+列名（変量名）     | データ形式 | 説明
+-------------------|------------|----------------------------------------------
+patientId          | String     | 陽性判定者の識別情報（厚生労働省のIDとは異なる）
+date               | YYYY-MM-DD | 陽性判定の報告日（検査日ではない）
+gender             | String     | 陽性者の性別（非公開あり）
+detectedPrefecture | String     | 報告主体（都道府県ならびに空港検疫など）
+patientStatus      | String     | 陽性者の状態（[詳細](https://github.com/reustle/covid19japan-data/blob/master/README_data_format.md)）
+knownCluster       | String     | 陽性者のクラスタに関する情報
+confirmedPatient   | boolean    | FALSEの場合は重複報告などの可能性あり
+residence          | String     | 陽性者の居住地（非公開あり）
+ageBracket         | Numeric    | 陽性者の年代（非公開あり）
+pref               | String     | `detectedPrefecture` の日本語都道府県名
+region             | String     | 都道府県の八地方区分名
+population         | Numeric    | H30年時点の推計人口（単位は千人、出典：統計局）
+
+　  
+オリジナルデータのデータフォーマットについては [こちら](https://github.com/reustle/covid19japan-data/blob/master/README_data_format.md) を参照してください。なお、オリジナルデータをRを用いて直接読み込みたい場合には、以下のコードを利用してください。
+```{r, echo=TRUE, eval=FALSE}
+library(tidyverse)
+library(jsonlite)
+"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+  jsonlite::fromJSON()
+```
+
+　  
+都道府県地方区分などのデータは下記のリンクから参照してください。  
+　  
+
+### その他データ
+関連データは以下から入手可能です。
+
+* [Google COVID-19 感染予測(日本版)](https://datastudio.google.com/u/0/reporting/8224d512-a76e-4d38-91c1-935ba119eb8f/page/ncZpB?s=nXbF2P6La2M)
+* [都道府県地方区分ならびに推計人口](https://gist.github.com/k-metrics/9f3fc18e042850ff24ad9676ac34764b)
+* [新型コロナウイルス対策ダッシュボード](https://www.stopcovid19.jp/)
+    * [新型コロナウイルス対策病床オープンデータ](https://docs.google.com/spreadsheets/d/1u0Ul8TgJDqoZMnqFrILyXzTHvuHMht1El7wDZeVrpp8/edit#gid=0)
+* [新型コロナウィルス感染速報](https://covid-2019.live/)
+* [NHK集計データ](https://www3.nhk.or.jp/n-data/opendata/coronavirus/nhk_news_covid19_prefectures_daily_data.csv)
+* [埼玉県オープンデータ（個票）](https://opendata.pref.saitama.lg.jp/data/dataset/covid19-jokyo)
+* [東京都オープンデータ（個票）](https://stopcovid19.metro.tokyo.lg.jp/data/130001_tokyo_covid19_patients.csv)
+* [神奈川県オープンデータ（個票）](https://www.pref.kanagawa.jp/osirase/1369/data/csv/patient.csv)
+* [大阪府オープンデータ（集計）](https://covid19-osaka.info/data/summary.csv)
+* [兵庫県オープンデータ（集計）](https://web.pref.hyogo.lg.jp/kk03/documents/yousei.xlsx)
+* [COVID-19 Data Repository, CSSE Johns Hopkins University](https://github.com/CSSEGISandData/COVID-19)
+
+　  
+
+## 注意事項・免責事項
+
+* 本リポジトリは予告なく内容を変更する場合があります
+* 各データの著作権は原著作者にあります
+* 各データを利用したことにより利用者または第三者に損害などが発生しても当方は損害賠償その他一切の責任を負いません
+
+　  
+
+Enjoy!  
+
+---
+[CC 4.0 BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ja), Sampo Suzuki (Update: `r lubridate::now()`)

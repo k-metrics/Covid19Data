@@ -1,0 +1,57 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.width = 8, fig.height = 6, include = FALSE)
+
+require(tidyverse)
+require(jsonlite)
+```
+
+```{r}
+df <- "https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+  jsonlite::fromJSON()
+
+prefs <- "https://gist.githubusercontent.com/k-metrics/9f3fc18e042850ff24ad9676ac34764b/raw/9262c36b0740edd575e9f0292dad61c9cce269be/pref_utf8.csv" %>% 
+  readr::read_csv() %>% 
+  dplyr::rename(pcode = `コード`) %>% 
+  dplyr::mutate(pref = stringr::str_to_title(pref),
+                pcode = forcats::fct_inorder(pcode),
+                `都道府県` = forcats::fct_inorder(`都道府県`),
+                `八地方区分` = forcats::fct_inorder(`八地方区分`),
+                `広域圏` = forcats::fct_inorder(`広域圏`),
+                `通俗的区分` = forcats::fct_inorder(`通俗的区分`),
+                `推計人口` = as.integer(`推計人口`))
+
+x <- df %>% 
+  dplyr::select(patientId, date = dateAnnounced, gender,
+                detectedPrefecture, patientStatus, knownCluster,
+                confirmedPatient,
+                ageBracket) %>% 
+  # dplyr::filter(confirmedPatient == TRUE) %>% 
+  dplyr::left_join(prefs, by = c("detectedPrefecture" = "pref")) %>% 
+  dplyr::rename(pref = `都道府県`, region = `八地方区分`, popu = `推計人口`) %>% 
+  dplyr::select(-pcode, -`広域圏`, -`通俗的区分`)
+
+x %>% 
+  readr::write_csv(paste0("./Covid19Japan/covid19japan_", lubridate::today(), ".csv"))
+```
+
+```{r}
+"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+  jsonlite::fromJSON() %>% 
+  readr::write_csv(paste0("./Covid19Japan/covid19japan_", lubridate::today(), "_json.csv"))
+
+"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+  download.file(., paste0("./Covid19Japan/JSON/covid19japan_", lubridate::today(), ".json"))
+
+"https://storage.googleapis.com/covid-external/forecast_JAPAN_PREFECTURE_28.csv" %>% 
+  download.file(., paste0("./Google/Google_Forecast_", lubridate::today(), ".csv"))
+
+"https://www3.nhk.or.jp/n-data/opendata/coronavirus/nhk_news_covid19_prefectures_daily_data.csv" %>% 
+  download.file(., paste0("./NHK/NHK_", lubridate::today(), ".csv"))
+```
+
+Data File Created: `r lubridate::now()`　  
