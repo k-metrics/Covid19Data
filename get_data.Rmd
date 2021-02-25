@@ -40,12 +40,18 @@ x %>%
 ```
 
 ```{r}
-"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
-  jsonlite::fromJSON() %>% 
-  readr::write_csv(paste0("./Covid19Japan/covid19japan_", lubridate::today(), "_json.csv"))
+# "https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+#   download.file(., paste0("./Covid19Japan/JSON/covid19japan_", lubridate::today(), ".json"))
 
-"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
-  download.file(., paste0("./Covid19Japan/JSON/covid19japan_", lubridate::today(), ".json"))
+# "https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>% 
+#   jsonlite::fromJSON() %>% 
+#   readr::write_csv(paste0("./Covid19Japan/covid19japan_", lubridate::today(), "_json.csv"))
+
+"https://raw.githubusercontent.com/reustle/covid19japan-data/master/docs/patient_data/latest.json" %>%
+  jsonlite::fromJSON() %>%
+  arrow::write_parquet(sink = paste0("./Covid19Japan/covid19japan_",
+                                     lubridate::today(), ".parquet"),
+                       compression = "uncompressed")
 
 "https://storage.googleapis.com/covid-external/forecast_JAPAN_PREFECTURE_28.csv" %>% 
   download.file(., paste0("./Google/Google_Forecast_", lubridate::today(), ".csv"))
@@ -54,4 +60,4 @@ x %>%
   download.file(., paste0("./NHK/NHK_", lubridate::today(), ".csv"))
 ```
 
-Data File Created: `r lubridate::now()`　  
+Created: `r lubridate::now()`　  

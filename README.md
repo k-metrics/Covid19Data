@@ -16,15 +16,18 @@ Covid19 Data
 
 現状では手動トリガーにて取得しているために取得時間はバラバラです（取得後に更新されている可能性があります）。
 
-| ファイル名                              | 内容                      | Encode |
-| ---------------------------------- | ----------------------- | ------ |
-| covid19japan\_YYYY-MM-DD.csv       | 加工済個票データ                | UTF-8  |
-| covid19japan\_YYYY-MM-DD.json      | Covid19Japanのオリジナルデータ   | UTF-8  |
-| covid19japan\_YYYY-MM-DD\_json.csv | 上記をCSV形式に変換したもの         | UTF-8  |
-| Google\_Forecast\_YYYY-MM-DD.csv   | Googleの予測データ            | UTF-8  |
-| NHK\_YYYY-MM-DD.csv                | NHKの都道府県別日時集計（単日・累計）データ | UTF-8  |
+| ファイル名                              | 内容                                                 | Encode | 備考          |
+| ---------------------------------- | -------------------------------------------------- | ------ | ----------- |
+| covid19japan\_YYYY-MM-DD.csv       | 加工済個票データ                                           | UTF-8  |             |
+| covid19japan\_YYYY-MM-DD.json      | Covid19Japanのオリジナルデータ                              | UTF-8  | 2021/2/24まで |
+| covid19japan\_YYYY-MM-DD\_json.csv | 上記をCSV形式に変換したもの                                    | UTF-8  | 同上          |
+| covid19japan\_YYYY-MM-DD.parquet   | 上記を[Parquet形式](https://parquet.apache.org/)に変換したもの | NA     | 2021/2/25から |
+| Google\_Forecast\_YYYY-MM-DD.csv   | Googleの予測データ                                       | UTF-8  |             |
+| NHK\_YYYY-MM-DD.csv                | NHKの都道府県別日時集計（単日・累計）データ                            | UTF-8  |             |
 
-`YYYY-MM-DD`は取得日
+`YYYY-MM-DD`は取得日。  
+Parquetファイルを利用する場合は [`arrow`
+パッケージ](https://arrow.apache.org/docs/r/index.html) が必要です。
 
 　
 
@@ -126,4 +129,4 @@ Enjoy\!
 
 [CC 4.0
 BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ja),
-Sampo Suzuki (Update: 2021-02-23 16:40:25)
+Sampo Suzuki (Update: 2021-02-25 17:25:17)
